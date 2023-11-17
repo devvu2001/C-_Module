@@ -19,98 +19,79 @@ namespace AppDbAdapterNamespace
     {
         static void Main(string[] args)
         {
-            // Kết nối cơ sở dữ liệu
-            string serverName = "DESKTOP-NMSJUN5";
-            string databaseName = "ShoppingCartDB";
-            string integratedSecurity = "True";
-            string connectionString = $"Data Source={"DESKTOP - NMSJUN5"};Initial Catalog={"ShoppingCartDB"};Integrated Security={integratedSecurity};";
+            // Kết nối cơ sở dữ liệu;
+            string connectionString = "Server=DESKTOP-NMSJUN5;Database=ShoppingCartDB;Trusted_Connection=SSPI;Encrypt=false;TrustServerCertificate=true;";
             AppDbAdapter dbAdapter = new AppDbAdapter(connectionString);
 
 
-            // Tạo các SQL Adapter
-            CartSQLAdapter cartSqlAdapter = new CartSQLAdapter(dbAdapter);
-            OrderSQLAdapter orderSqlAdapter = new OrderSQLAdapter(dbAdapter);
-            ProductSQLAdapter productSqlAdapter = new ProductSQLAdapter(dbAdapter);
-            UserSQLAdapter userSqlAdapter = new UserSQLAdapter(dbAdapter);
+            // Tạo các SQL adapters
+            var appDbAdapter = new AppDbAdapter(connectionString);
+            UserSQLAdapter userAdapter = new UserSQLAdapter(dbAdapter);
+            ProductSQLAdapter productAdapter = new ProductSQLAdapter(dbAdapter);
+            CartSQLAdapter cartAdapter = new CartSQLAdapter(dbAdapter);
+            OrderSQLAdapter orderAdapter = new OrderSQLAdapter(dbAdapter);
 
-            // Tạo các dịch vụ
-            CartService cartService = new CartService(cartSqlAdapter);
-            OrderService orderService = new OrderService(orderSqlAdapter);
+            // Tạo các services
+            CartService cartService = new CartService(cartAdapter);
+            OrderService orderService = new OrderService(orderAdapter);
 
-            // Tạo một sản phẩm mẫu
-            Product sampleProduct = new Product
+            // Tạo mới một user
+            User newUser = new User
             {
                 Id = Guid.NewGuid(),
-                Name = "Sample Product",
-                Price = 10
+                UserName = "NewUser"
             };
+            userAdapter.Insert(newUser);
 
-            // Tạo một người dùng mẫu
-            User sampleUser = new User
+            // Hiển thị danh sách sản phẩm từ cơ sở dữ liệu
+            List<Product> products = productAdapter.GetAll();
+            Console.WriteLine("Available Products:");
+            foreach (var product in products)
             {
-                Id = Guid.NewGuid(),
-                UserName = "SampleUser"
-            };
+                Console.WriteLine($"ID: {product.Id}, Name: {product.Name}, Price: {product.Price:C}");
+            }
 
-            // Hiển thị thông tin giỏ hàng trước khi thêm sản phẩm
-            DisplayCartInfo(sampleUser);
+            // Thêm sản phẩm vào giỏ hàng của người dùng
+            Console.WriteLine("Enter the ID of the product to add to the cart (or press Enter to finish):");
+            string productId;
+            while (!string.IsNullOrEmpty(productId = Console.ReadLine()))
+            {
+                if (Guid.TryParse(productId, out Guid productIdGuid))
+                {
+                    Product selectedProduct = products.Find(p => p.Id == productIdGuid);
+                    if (selectedProduct != null)
+                    {
+                        cartService.AddProductToCart(newUser, selectedProduct);
+                        Console.WriteLine($"Product '{selectedProduct.Name}' added to the cart.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid product ID. Please enter a valid product ID.");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Invalid product ID format. Please enter a valid product ID.");
+                }
+            }
 
-            // Thêm sản phẩm vào giỏ hàng và hiển thị lại thông tin
-            cartService.AddProductToCart(sampleUser, sampleProduct);
-            DisplayCartInfo(sampleUser);
+            // Tạo đơn hàng từ giỏ hàng của người dùng
+            orderService.CreateUserOrder(newUser);
 
-            // Tạo đơn hàng cho người dùng và hiển thị thông tin đơn hàng
-            orderService.CreateUserOrder(sampleUser);
-            DisplayUserOrderInfo(sampleUser);
+            // Hiển thị thông tin đơn hàng
+            Order userOrder = orderAdapter.GetById(newUser.Id);
+            Console.WriteLine("Order Summary:");
+            Console.WriteLine($"Order ID: {userOrder.Id}");
+            Console.WriteLine($"User: {userOrder.User.UserName}");
+            Console.WriteLine("Products in the order:");
+            foreach (var product in userOrder.Products)
+            {
+                Console.WriteLine($"- {product.Name}, Price: {product.Price:C}");
+            }
+            Console.WriteLine($"Total Amount: {userOrder.Products.Sum(p => p.Price):C}");
 
             Console.WriteLine("Press any key to exit.");
             Console.ReadLine();
         }
-
-        static void DisplayCartInfo(User user)
-        {
-            if (user.Cart != null && user.Cart.Products.Count > 0)
-            {
-                Console.WriteLine($"User: {user.UserName}");
-                Console.WriteLine("Cart Details:");
-
-                foreach (var product in user.Cart.Products)
-                {
-                    Console.WriteLine($"Product: {product.Name}, Price: {product.Price}");
-                }
-
-                Console.WriteLine($"Total Amount in Cart: {user.Cart.Products.Sum(p => p.Price)}");
-            }
-            else
-            {
-                Console.WriteLine("No products in the cart.");
-            }
-
-            Console.WriteLine();
-        }
-
-        static void DisplayUserOrderInfo(User user)
-        {
-            if (user.Cart != null && user.Cart.Products.Count > 0)
-            {
-                Console.WriteLine($"User: {user.UserName}");
-                Console.WriteLine("Order Details:");
-
-                foreach (var product in user.Cart.Products)
-                {
-                    Console.WriteLine($"Product: {product.Name}, Price: {product.Price}");
-                }
-
-                Console.WriteLine($"Total Amount: {user.Cart.Products.Sum(p => p.Price)}");
-            }
-            else
-            {
-                Console.WriteLine("No products in the cart.");
-            }
-        }
-
-
-
     }
-}
-
+}    

@@ -23,8 +23,32 @@ namespace basic_csharp.SQLAdapter
 
         public List<Product> GetAll()
         {
-            throw new NotImplementedException();
+            List<Product> products = new List<Product>();
+
+            string sql = "SELECT * FROM Products";
+            using (var connection = new SqlConnection(_dbAdapter._connectionString))
+            using (var command = new SqlCommand(sql, connection))
+            {
+                connection.Open();
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        Product product = new Product
+                        {
+                            Id = reader.GetGuid(reader.GetOrdinal("Id")),
+                            Name = reader.GetString(reader.GetOrdinal("Name")),
+                            Price = reader.GetDecimal(reader.GetOrdinal("Price"))
+                        };
+
+                        products.Add(product);
+                    }
+                }
+            }
+
+            return products;
         }
+
 
         public Product GetById(Guid id)
         {
